@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-16",
+  "time": "09:02",
+  "announcement": 1,
+  "buy": 67400,
+  "sell": 67600,
+  "change": 200,
+  "source_url": "sample://local",
+  "fetched_at": "2026-09-18T00:22:44.127016+07:00",
+  "state": "up"
+}

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daily-gold-line-bot"
+version = "1.0.0"
+description = "Render the first Thai gold-price announcement into a Canva-matched card and send it to LINE."
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "Pillow>=10.4,<13",
+  "requests>=2.32,<3"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<10"]
+
+[project.scripts]
+gold-card = "gold_bot.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

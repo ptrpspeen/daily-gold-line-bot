@@ -1,0 +1,101 @@
+{
+  "canvas": {
+    "width": 1080,
+    "height": 1080,
+    "source": "Canva 1080 x 1080"
+  },
+  "fonts": {
+    "brand": {
+      "family": "Anantason",
+      "delivery": "baked_into_template",
+      "note": "Commercial font is retained in the exported Canva background and is not redistributed."
+    },
+    "dynamic_regular": {
+      "family": "Noto Sans Thai",
+      "weight": 400,
+      "file": "../fonts/NotoSansThai-Regular.ttf"
+    },
+    "dynamic_medium": {
+      "family": "Noto Sans Thai",
+      "weight": 500,
+      "file": "../fonts/NotoSansThai-Medium.ttf"
+    },
+    "dynamic_bold": {
+      "family": "Noto Sans Thai",
+      "weight": 700,
+      "file": "../fonts/NotoSansThai-Bold.ttf"
+    }
+  },
+  "colors": {
+    "brown": "#4D390D",
+    "up": "#419028",
+    "down": "#EA3323",
+    "neutral": "#4D390D",
+    "shadow": "#565858"
+  },
+  "shadow": {
+    "offset_x": 5,
+    "offset_y": 5,
+    "blur_radius": 0.4,
+    "opacity": 0.9
+  },
+  "fields": {
+    "datetime": {
+      "center_x": 535,
+      "origin_y": 405,
+      "font": "dynamic_medium",
+      "canva_font_size": 40,
+      "render_size_px": 55,
+      "fill": "brown",
+      "max_width": 700,
+      "shadow_offset_x": 3,
+      "shadow_offset_y": 3
+    },
+    "buy": {
+      "center_x": 344,
+      "origin_y": 616,
+      "font": "dynamic_bold",
+      "canva_font_size": 84,
+      "render_size_px": 113,
+      "fill": "brown",
+      "max_width": 410,
+      "tracking_px": 2
+    },
+    "sale": {
+      "center_x": 339,
+      "origin_y": 824,
+      "font": "dynamic_bold",
+      "canva_font_size": 84,
+      "render_size_px": 113,
+      "fill": "brown",
+      "max_width": 410,
+      "tracking_px": 2
+    },
+    "status": {
+      "center_x": 783,
+      "origin_y": 616,
+      "font": "dynamic_bold",
+      "canva_font_size": 60,
+      "render_size_px": 82,
+      "max_width": 335
+    },
+    "delta": {
+      "center_x": 754,
+      "origin_y_up": 712,
+      "origin_y_down": 729,
+      "origin_y_neutral": 729,
+      "font": "dynamic_bold",
+      "canva_font_size": 105,
+      "render_size_px": 144,
+      "max_width": 285,
+      "tracking_px": 4
+    },
+    "arrow": {
+      "center_x": 943,
+      "width": 66,
+      "height": 63,
+      "top_up": 778,
+      "top_down": 801
+    }
+  }
+}
