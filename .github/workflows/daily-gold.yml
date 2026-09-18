@@ -2,7 +2,7 @@ name: Daily Gold Price Card
 
 on:
   schedule:
-    - cron: "10 9 * * 1-6"
+    - cron: "10-40/5 9 * * 1-6"
       timezone: "Asia/Bangkok"
   workflow_dispatch:
     inputs:
@@ -38,19 +38,36 @@ jobs:
           # produced by an earlier attempt of this workflow.
           ref: ${{ github.event.repository.default_branch }}
 
+      - name: Check delivery receipt
+        id: delivery
+        shell: bash
+        run: |
+          TODAY="$(TZ=Asia/Bangkok date +%F)"
+          RECEIPT="state/sent/${TODAY}.json"
+          if [[ "$GITHUB_EVENT_NAME" == "schedule" && -f "$RECEIPT" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Delivery already completed for ${TODAY}; skipping this retry."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Python
+        if: steps.delivery.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install
+        if: steps.delivery.outputs.skip != 'true'
         run: pip install -e ".[dev]"
 
       - name: Verify parser and renderer
+        if: steps.delivery.outputs.skip != 'true'
         run: pytest
 
       - name: Fetch first announcement and render
+        if: steps.delivery.outputs.skip != 'true'
         run: >-
           python -m gold_bot fetch-render
           --output generated/latest.png
@@ -60,6 +77,7 @@ jobs:
           --retry-delay 300
 
       - name: Read result date
+        if: steps.delivery.outputs.skip != 'true'
         id: result
         shell: bash
         run: |
@@ -67,6 +85,7 @@ jobs:
           echo "date=$RESULT_DATE" >> "$GITHUB_OUTPUT"
 
       - name: Publish generated image to repository
+        if: steps.delivery.outputs.skip != 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -79,7 +98,7 @@ jobs:
           fi
 
       - name: Resolve public image URL
-        if: github.event_name == 'schedule' || inputs.send_to_line == true
+        if: steps.delivery.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_to_line == true)
         id: public_image
         env:
           CUSTOM_BASE: ${{ vars.PUBLIC_IMAGE_BASE_URL }}
@@ -93,11 +112,11 @@ jobs:
           echo "url=$IMAGE_URL" >> "$GITHUB_OUTPUT"
 
       - name: Wait for public image
-        if: github.event_name == 'schedule' || inputs.send_to_line == true
+        if: steps.delivery.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_to_line == true)
         run: python tools/wait_for_url.py "${{ steps.public_image.outputs.url }}" --timeout 120
 
       - name: Send to LINE
-        if: github.event_name == 'schedule' || inputs.send_to_line == true
+        if: steps.delivery.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_to_line == true)
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_TO: ${{ secrets.LINE_TO }}
@@ -112,7 +131,7 @@ jobs:
             $FORCE_FLAG
 
       - name: Save delivery receipt
-        if: github.event_name == 'schedule' || inputs.send_to_line == true
+        if: steps.delivery.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_to_line == true)
         shell: bash
         run: |
           git add "state/sent/${{ steps.result.outputs.date }}.json"
@@ -123,6 +142,7 @@ jobs:
           fi
 
       - name: Upload run artifact
+        if: steps.delivery.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gold-price-${{ steps.result.outputs.date }}
