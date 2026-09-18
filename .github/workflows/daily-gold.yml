@@ -34,6 +34,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # A re-run keeps the original event SHA, which may be behind commits
+          # produced by an earlier attempt of this workflow.
+          ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -71,7 +74,8 @@ jobs:
           git add generated/latest.png generated/latest.json "generated/${{ steps.result.outputs.date }}.png"
           if ! git diff --cached --quiet; then
             git commit -m "chore: gold price ${{ steps.result.outputs.date }}"
-            git push
+            git pull --rebase origin "${{ github.event.repository.default_branch }}"
+            git push origin "HEAD:${{ github.event.repository.default_branch }}"
           fi
 
       - name: Resolve public image URL
@@ -114,7 +118,8 @@ jobs:
           git add "state/sent/${{ steps.result.outputs.date }}.json"
           if ! git diff --cached --quiet; then
             git commit -m "chore: LINE receipt ${{ steps.result.outputs.date }}"
-            git push
+            git pull --rebase origin "${{ github.event.repository.default_branch }}"
+            git push origin "HEAD:${{ github.event.repository.default_branch }}"
           fi
 
       - name: Upload run artifact
