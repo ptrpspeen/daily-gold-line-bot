@@ -34,8 +34,8 @@
     "shadow": "#565858"
   },
   "shadow": {
-    "offset_x": 5,
-    "offset_y": 5,
+    "offset_x": 3,
+    "offset_y": 3,
     "blur_radius": 0.4,
     "opacity": 0.9
   },
@@ -47,9 +47,7 @@
       "canva_font_size": 40,
       "render_size_px": 55,
       "fill": "brown",
-      "max_width": 700,
-      "shadow_offset_x": 3,
-      "shadow_offset_y": 3
+      "max_width": 700
     },
     "buy": {
       "center_x": 344,
