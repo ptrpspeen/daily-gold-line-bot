@@ -65,8 +65,8 @@ Workflow ตั้งเวลาไว้ดังนี้:
 
 ```yaml
 schedule:
-  - cron: "10-40/5 9 * * 1-6"
-    timezone: "Asia/Bangkok"
+  # 02:10–02:40 UTC = 09:10–09:40 Asia/Bangkok
+  - cron: "10-40/5 2 * * 1-6"
 ```
 
 เมื่อส่งสำเร็จ workflow จะบันทึก receipt ของวันนั้น รอบ schedule ถัดไปจึงหยุดทันทีโดยไม่ดึงราคาและไม่ส่ง LINE ซ้ำ

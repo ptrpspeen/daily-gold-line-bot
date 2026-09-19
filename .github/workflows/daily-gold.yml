@@ -2,8 +2,8 @@ name: Daily Gold Price Card
 
 on:
   schedule:
-    - cron: "10-40/5 9 * * 1-6"
-      timezone: "Asia/Bangkok"
+    # 02:10-02:40 UTC = 09:10-09:40 Asia/Bangkok (UTC+7, no DST).
+    - cron: "10-40/5 2 * * 1-6"
   workflow_dispatch:
     inputs:
       send_to_line:
