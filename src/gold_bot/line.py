@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 from .models import GoldPrice
-from .renderer import thai_datetime_label
+from .renderer import THAI_MONTHS
 
 
 LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
@@ -23,13 +23,25 @@ class LineDeliveryError(RuntimeError):
 
 
 def build_caption(price: GoldPrice) -> str:
-    status = {"up": "ปรับขึ้น", "down": "ปรับลง", "neutral": "คงที่"}[price.state]
+    direction = {"up": "⬆️", "down": "⬇️", "neutral": "➡️"}[price.state]
+    change = f"{price.change:+,}" if price.change else "0"
     return (
-        "ราคาทองคำแท่ง\n"
-        f"{thai_datetime_label(price.date, price.time)}\n"
-        f"รับซื้อ {price.buy:,} บาท\n"
-        f"ขายออก {price.sell:,} บาท\n"
-        f"{status} {abs(price.change):,} บาท"
+        f"ราคาทอง วันที่ {price.date.day} {THAI_MONTHS[price.date.month]} "
+        f"{price.date.year + 543} เวลา {price.time:%H:%M} น. ค่ะ\n"
+        f"{direction} {change} ฿\n"
+        ".\n"
+        "สนใจซื้อ-ขาย-ออม แวะมาที่ร้านแสงอรุณได้เลยนะคะ ☺️\n"
+        ".\n"
+        "พิกัด : ตลาดสดเทศบาลศีขรภูมิ ใกล้ Big-C mini\n"
+        "https://maps.app.goo.gl/QCHkEfNAacJDQfYFA?g_st=ic\n"
+        ".\n"
+        "เปิดทุกวัน จันทร์ - เสาร์\n"
+        "เวลา 07:00 - 17:00\n"
+        "โทร : 065-5848287\n"
+        "ID Line : 044561161\n"
+        ".\n"
+        "#ห้างทองแสงอรุณ #ทองเยาวราช #ทองคำแท่ง #ทองรูปพรรณ #ราคาทอง "
+        "#ขายฝากทอง #จำนำทอง #ร้านทองสุรินทร์ #ร้านทองศีขรภูมิ #รีวิวสุรินทร์"
     )
 
 
