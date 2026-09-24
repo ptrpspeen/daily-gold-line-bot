@@ -1,0 +1,54 @@
+name: Resend Today's Gold Text
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resend-text:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Send today's text to LINE
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO: ${{ secrets.LINE_TO }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import uuid
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          import requests
+
+          from gold_bot.line import LINE_PUSH_URL, build_caption
+          from gold_bot.models import GoldPrice
+
+          price = GoldPrice.from_dict(json.loads(Path("generated/latest.json").read_text(encoding="utf-8")))
+          today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
+          if price.date != today:
+              raise SystemExit(f"Saved gold price is for {price.date}, not today ({today})")
+
+          to = os.environ["LINE_TO"]
+          retry_key = str(uuid.uuid5(uuid.NAMESPACE_URL, f"gold-text:{os.environ['GITHUB_RUN_ID']}:{to}:{today}"))
+          response = requests.post(
+              LINE_PUSH_URL,
+              headers={
+                  "Authorization": f"Bearer {os.environ['LINE_CHANNEL_ACCESS_TOKEN']}",
+                  "X-Line-Retry-Key": retry_key,
+              },
+              json={"to": to, "messages": [{"type": "text", "text": build_caption(price)}]},
+              timeout=30,
+          )
+          response.raise_for_status()
+          print(f"Sent text for {today} to LINE (HTTP {response.status_code})")
+          PY
