@@ -7,7 +7,7 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from .models import GoldPrice
 
@@ -63,19 +63,19 @@ def _date_and_time(value: str) -> tuple[date, time]:
     )
 
 
-def _table_rows(document: bytes | str) -> list[list[str]]:
+def _table_rows(document: bytes | str) -> list[tuple[list[str], Tag]]:
     soup = BeautifulSoup(document, "html.parser")
-    rows: list[list[str]] = []
+    rows: list[tuple[list[str], Tag]] = []
     for row in soup.find_all("tr"):
         cells = [_clean(cell.get_text(" ", strip=True)) for cell in row.find_all(["th", "td"])]
         if cells:
-            rows.append(cells)
+            rows.append((cells, row))
     return rows
 
 
-def _find_first_row(document: bytes | str) -> list[str]:
-    candidates: list[list[str]] = []
-    for cells in _table_rows(document):
+def _find_first_row(document: bytes | str) -> tuple[list[str], Tag]:
+    candidates: list[tuple[list[str], Tag]] = []
+    for cells, row in _table_rows(document):
         if len(cells) < 9:
             continue
         if not re.search(r"\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}", cells[0]):
@@ -85,11 +85,11 @@ def _find_first_row(document: bytes | str) -> list[str]:
         except GoldPriceParseError:
             continue
         if announcement == 1:
-            candidates.append(cells)
+            candidates.append((cells, row))
     if not candidates:
         raise AnnouncementNotReady("ยังไม่พบประกาศราคาทองครั้งที่ 1")
     # A malformed page may contain more than one date. The newest date wins.
-    return max(candidates, key=lambda row: _date_and_time(row[0]))
+    return max(candidates, key=lambda candidate: _date_and_time(candidate[0][0]))
 
 
 def parse_official_table(
@@ -97,7 +97,7 @@ def parse_official_table(
     expected_date: date | None = None,
     source_url: str = OFFICIAL_URL,
 ) -> GoldPrice:
-    cells = _find_first_row(document)
+    cells, _ = _find_first_row(document)
     price_date, price_time = _date_and_time(cells[0])
     if expected_date and price_date != expected_date:
         raise AnnouncementNotReady(
@@ -115,17 +115,55 @@ def parse_official_table(
     )
 
 
-def _fallback_direction(document: bytes | str) -> int:
+def _fallback_row_direction(row: Tag, change: str) -> int | None:
+    cell = row.find_all(["th", "td"])[8]
+    classes = set(cell.get("class", []))
+    for child in cell.find_all(class_=True):
+        classes.update(child.get("class", []))
+    directions: set[int] = set()
+    if classes.intersection({"goldUp", "img-up"}):
+        directions.add(1)
+    if classes.intersection({"goldDown", "img-down"}):
+        directions.add(-1)
+    if re.match(r"^[+-]", change):
+        directions.add(-1 if change.startswith("-") else 1)
+    if len(directions) > 1:
+        raise GoldPriceParseError("แหล่งข้อมูลสำรองระบุทิศทางในแถวราคาขัดแย้งกัน")
+    return next(iter(directions), None)
+
+
+def _fallback_direction(document: bytes | str, price_date: date) -> int:
     soup = BeautifulSoup(document, "html.parser")
-    text = _clean(soup.get_text(" ", strip=True))
-    marker = re.search(r"ประกาศครั้งที่\s*1", text)
-    snippet = text[marker.start() : marker.start() + 500] if marker else text[:1500]
-    if re.search(r"(?:ปรับ(?:ตัว)?(?:ลดลง|ลง)|เปิดตลาด(?:ลดลง|ลง)|ร่วง)", snippet):
-        return -1
-    if re.search(r"(?:ปรับ(?:ตัว)?(?:เพิ่มขึ้น|ขึ้น)|เปิดตลาด(?:เพิ่มขึ้น|ขึ้น))", snippet):
-        return 1
-    if re.search(r"(?:คงที่|ไม่เปลี่ยนแปลง)", snippet):
-        return 0
+    for article in soup.find_all("article") or [soup]:
+        published = article.find("time", datetime=True)
+        if published:
+            value = str(published["datetime"])
+            article_date = None
+            for format in ("%d-%m-%Y", "%Y-%m-%d"):
+                try:
+                    article_date = datetime.strptime(value[:10], format).date()
+                    break
+                except ValueError:
+                    continue
+            if article_date != price_date:
+                continue
+        text = _clean(article.get_text(" ", strip=True))
+        marker = re.search(r"ประกาศครั้งที่\s*1(?!\d)", text)
+        if not marker:
+            continue
+        # Opening-price reports also describe yesterday's movement. Only the
+        # announcement before that comparison determines this row's direction.
+        snippet = text[marker.end() : marker.end() + 500]
+        snippet = re.split(r"เมื่อเทียบ|เมื่อวาน", snippet, maxsplit=1)[0]
+        direction = re.search(
+            r"(?P<down>ปรับ(?:ตัว)?(?:ลดลง|ลง)|เปิดตลาด(?:ลดลง|ลง)|ร่วง)"
+            r"|(?P<up>ปรับ(?:ตัว)?(?:เพิ่มขึ้น|ขึ้น)|เปิดตลาด(?:เพิ่มขึ้น|ขึ้น))"
+            r"|(?P<neutral>คงที่|ไม่เปลี่ยนแปลง)",
+            snippet,
+        )
+        if direction:
+            return {"down": -1, "up": 1, "neutral": 0}[direction.lastgroup]
+        break
     raise GoldPriceParseError("แหล่งข้อมูลสำรองไม่ระบุทิศทางขึ้น/ลงอย่างชัดเจน")
 
 
@@ -134,13 +172,19 @@ def parse_fallback_site(
     expected_date: date | None = None,
     source_url: str = FALLBACK_URL,
 ) -> GoldPrice:
-    cells = _find_first_row(document)
+    cells, row = _find_first_row(document)
     price_date, price_time = _date_and_time(cells[0])
     if expected_date and price_date != expected_date:
         raise AnnouncementNotReady(
             f"แหล่งสำรองยังเป็นวันที่ {price_date.isoformat()} ไม่ใช่ {expected_date.isoformat()}"
         )
-    change = abs(_number(cells[8])) * _fallback_direction(document)
+    amount = abs(_number(cells[8]))
+    direction = _fallback_row_direction(row, cells[8])
+    if amount and direction is None:
+        direction = _fallback_direction(document, price_date)
+    if amount and direction == 0:
+        raise GoldPriceParseError("แหล่งข้อมูลสำรองระบุว่าราคาคงที่แต่ส่วนต่างไม่เป็นศูนย์")
+    change = amount * (direction or 0)
     return GoldPrice(
         date=price_date,
         time=price_time,
