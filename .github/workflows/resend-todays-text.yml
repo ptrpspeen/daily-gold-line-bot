@@ -15,6 +15,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e .
+      - name: Read latest price from image snapshot
+        run: |
+          git fetch --no-tags --depth=1 origin refs/heads/gold-price-images
+          mkdir -p generated/run
+          git show FETCH_HEAD:latest.json > generated/run/latest.json
       - name: Send today's text to LINE
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
@@ -33,7 +38,7 @@ jobs:
           from gold_bot.line import LINE_PUSH_URL, build_caption
           from gold_bot.models import GoldPrice
 
-          price = GoldPrice.from_dict(json.loads(Path("generated/latest.json").read_text(encoding="utf-8")))
+          price = GoldPrice.from_dict(json.loads(Path("generated/run/latest.json").read_text(encoding="utf-8")))
           today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
           if price.date != today:
               raise SystemExit(f"Saved gold price is for {price.date}, not today ({today})")
