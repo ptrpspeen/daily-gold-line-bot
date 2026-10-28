@@ -70,9 +70,9 @@ jobs:
         if: steps.delivery.outputs.skip != 'true'
         run: >-
           python -m gold_bot fetch-render
-          --output generated/latest.png
-          --archive-dir generated
-          --data-output generated/latest.json
+          --output generated/run/latest.png
+          --archive-dir generated/run
+          --data-output generated/run/latest.json
           --retries 5
           --retry-delay 300
 
@@ -81,21 +81,13 @@ jobs:
         id: result
         shell: bash
         run: |
-          RESULT_DATE="$(python -c 'import json; print(json.load(open("generated/latest.json"))["date"])')"
+          RESULT_DATE="$(python -c 'import json; print(json.load(open("generated/run/latest.json"))["date"])')"
           echo "date=$RESULT_DATE" >> "$GITHUB_OUTPUT"
 
-      - name: Publish generated image to repository
+      - name: Publish five latest images to snapshot branch
         if: steps.delivery.outputs.skip != 'true'
         shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add generated/latest.png generated/latest.json "generated/${{ steps.result.outputs.date }}.png"
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: gold price ${{ steps.result.outputs.date }}"
-            git pull --rebase origin "${{ github.event.repository.default_branch }}"
-            git push origin "HEAD:${{ github.event.repository.default_branch }}"
-          fi
+        run: python tools/publish_images.py --directory generated/run --keep 5
 
       - name: Resolve public image URL
         if: steps.delivery.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_to_line == true)
@@ -107,7 +99,7 @@ jobs:
           if [[ -n "$CUSTOM_BASE" ]]; then
             IMAGE_URL="${CUSTOM_BASE%/}/latest.png?run=${GITHUB_RUN_ID}"
           else
-            IMAGE_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/generated/latest.png?run=${GITHUB_RUN_ID}"
+            IMAGE_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/gold-price-images/${{ steps.result.outputs.date }}.png?run=${GITHUB_RUN_ID}"
           fi
           echo "url=$IMAGE_URL" >> "$GITHUB_OUTPUT"
 
@@ -125,7 +117,7 @@ jobs:
           FORCE_FLAG=""
           if [[ "${{ inputs.force_send }}" == "true" ]]; then FORCE_FLAG="--force"; fi
           python -m gold_bot send-line \
-            --data generated/latest.json \
+            --data generated/run/latest.json \
             --image-url "${{ steps.public_image.outputs.url }}" \
             --receipt-dir state/sent \
             $FORCE_FLAG
@@ -134,6 +126,8 @@ jobs:
         if: steps.delivery.outputs.skip != 'true' && (github.event_name == 'schedule' || inputs.send_to_line == true)
         shell: bash
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "state/sent/${{ steps.result.outputs.date }}.json"
           if ! git diff --cached --quiet; then
             git commit -m "chore: LINE receipt ${{ steps.result.outputs.date }}"
@@ -147,6 +141,6 @@ jobs:
         with:
           name: gold-price-${{ steps.result.outputs.date }}
           path: |
-            generated/latest.png
-            generated/latest.json
+            generated/run/latest.png
+            generated/run/latest.json
           retention-days: 30

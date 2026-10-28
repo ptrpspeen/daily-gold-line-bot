@@ -10,7 +10,7 @@
 - retry 5 รอบ ทุก 5 นาที หากประกาศแรกมาช้ากว่า 09:10 น.
 - render วันที่ เวลา รับซื้อ ขายออก สถานะ ตัวเลข และลูกศร
 - รองรับ `ขึ้น`, `ลง` และกรณีพิเศษ `คงที่` เพื่อไม่รายงานข้อมูลผิด
-- เก็บภาพรายวัน พร้อมป้องกันการส่ง LINE ซ้ำด้วย receipt
+- เก็บภาพ 5 วันล่าสุดบน branch `gold-price-images` พร้อมป้องกันการส่ง LINE ซ้ำด้วย receipt
 - มี unit test สำหรับ parser, renderer และ LINE payload
 
 ## ฟอนต์และ Canva
@@ -47,7 +47,7 @@ python -m gold_bot render-demo --state neutral --output generated/demo-neutral.p
 python -m gold_bot fetch-render --retries 1 --retry-delay 0
 ```
 
-ผลลัพธ์อยู่ที่ `generated/latest.png` และ `generated/latest.json`
+ผลลัพธ์อยู่ที่ `generated/latest.png` และ `generated/latest.json` ภาพที่สร้างในเครื่องไม่ต้อง commit
 
 ## ตั้งค่า GitHub Actions
 
@@ -73,7 +73,13 @@ schedule:
 
 ## เงื่อนไข URL รูปสำหรับ LINE
 
-LINE image message ต้องอ่านรูปผ่าน public HTTPS URL ดังนั้นค่าเริ่มต้นใช้ URL ของ `raw.githubusercontent.com` และ repository ต้องเป็น **public**
+LINE image message ต้องอ่านรูปผ่าน public HTTPS URL ดังนั้นค่าเริ่มต้นใช้ URL ของ `raw.githubusercontent.com` บน branch `gold-price-images` และ repository ต้องเป็น **public** ตัวอย่าง URL คือ `https://raw.githubusercontent.com/ptrpspeen/daily-gold-line-bot/gold-price-images/2026-10-28.png`
+
+Workflow สร้างไฟล์ชั่วคราวใน `generated/run/` แล้วใช้ `tools/publish_images.py` เผยแพร่เฉพาะภาพ 5 วันที่ล่าสุด พร้อม `latest.png` และ `latest.json` บน branch นี้ `latest.png` เป็นชื่อสำรองของภาพวันล่าสุดและใช้ Git blob เดียวกัน จึงไม่ได้เพิ่มสำเนาใน Git อีกชุด
+
+ทุกครั้งที่เผยแพร่จะสร้าง snapshot commit ที่ไม่มี parent และใช้ `--force-with-lease` เฉพาะ branch ภาพ จึงไม่สะสมประวัติภาพรายวันใน branch นี้ ส่วน `main` เก็บเฉพาะโค้ดและ receipt ตามปกติ พร้อมภาพ `generated/latest.png` และ JSON ที่หยุดอัปเดตไว้เพื่อให้ลิงก์ LINE เดิมยังเปิดได้ ภาพเก่าที่เคย commit ยังอยู่ในประวัติ `main`; การเปลี่ยนนี้หยุดการเพิ่มภาพเข้า history โดยไม่เขียนประวัติโค้ดเดิมใหม่ และไม่ได้รับประกันเวลาที่ GitHub จะเก็บกวาด object ที่ไม่มี branch อ้างถึง
+
+ดูภาพที่เก็บอยู่ได้ที่ [branch ภาพล่าสุด](https://github.com/ptrpspeen/daily-gold-line-bot/tree/gold-price-images) ภาพย้อนหลังที่เกิน 5 วันจะถูกนำออกจาก branch ภาพ
 
 หาก repository เป็น private ให้เผยแพร่ `generated/latest.png` ผ่านโฮสต์ของคุณ แล้วสร้าง GitHub Actions variable:
 
@@ -105,7 +111,8 @@ src/gold_bot/scraper.py    ดึงเฉพาะประกาศครั�
 src/gold_bot/renderer.py   render ตามสเปก Canva
 src/gold_bot/line.py       ส่ง LINE Messaging API
 .github/workflows/         schedule จันทร์–เสาร์ 09:10
-generated/                 latest.png และภาพรายวัน
+tools/publish_images.py    เผยแพร่ snapshot ภาพ 5 วันล่าสุด
+generated/                 ไฟล์ในเครื่อง; latest.* เดิมเก็บไว้รองรับลิงก์ LINE เก่า
 state/sent/                receipt ป้องกันส่งซ้ำ
 tests/                     fixture และ automated tests
 ```
