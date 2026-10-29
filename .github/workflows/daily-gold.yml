@@ -41,10 +41,13 @@ jobs:
       - name: Check delivery receipt
         id: delivery
         shell: bash
+        env:
+          SEND_TO_LINE: ${{ github.event_name == 'schedule' || inputs.send_to_line == true }}
+          FORCE_SEND: ${{ inputs.force_send }}
         run: |
           TODAY="$(TZ=Asia/Bangkok date +%F)"
           RECEIPT="state/sent/${TODAY}.json"
-          if [[ "$GITHUB_EVENT_NAME" == "schedule" && -f "$RECEIPT" ]]; then
+          if [[ "$SEND_TO_LINE" == "true" && "$FORCE_SEND" != "true" && -f "$RECEIPT" ]]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Delivery already completed for ${TODAY}; skipping this retry."
           else
