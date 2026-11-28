@@ -1,0 +1,11 @@
+{
+  "date": "2026-11-28",
+  "time": "09:10",
+  "announcement": 1,
+  "buy": 58550,
+  "sell": 58750,
+  "change": -200,
+  "source_url": "https://classic.goldtraders.or.th/UpdatePriceList.aspx",
+  "fetched_at": "2026-11-28T09:16:31.489900+07:00",
+  "state": "down"
+}
